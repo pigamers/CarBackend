@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs")
 const User = require("../models/user.models")
 
@@ -5,6 +6,8 @@ const User = require("../models/user.models")
 // validation - not empty
 // check if user already exists
 // create usr object- create entry in db
+// create a jwt token after successful login
+// send token to frontend
 
 exports.login = async (req, res) => {
     try {
@@ -23,7 +26,25 @@ exports.login = async (req, res) => {
         if (!isMatch) {
             return res.status(400).json({ message: "Invalid email or password" })
         }
-        res.status(200).json({ message: "Login successful" })
+        const payload = {
+            user: {
+                id: user._id,
+                email: user.email
+            }
+        }
+
+        jwt.sign(
+            payload,
+            process.env.JWT_SECRET,
+            { expiresIn: "1h" },
+            (err, token) => {
+                if (err) throw err
+                res.status(200).json({
+                    token: token,
+                    message: "Login successful"
+                })
+            }
+        )
 
     } catch (error) {
         res.status(500).json({ message: "Internal server error" })
