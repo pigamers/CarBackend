@@ -9,6 +9,32 @@ const User = require("../models/user.models")
 // create a jwt token after successful login
 // send token to frontend
 
+exports.getUserProfile = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1]; // Assuming Bearer token
+
+        if (!token) {
+            return res.status(401).json({ message: 'No token provided' });
+        }
+
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Fetch user data from the database
+        const user = decoded.user; // Ensure decoded.userId is available and valid`
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.status(200).json(user.fullname);
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+
+}
+
 exports.login = async (req, res) => {
     try {
         const {
@@ -29,7 +55,10 @@ exports.login = async (req, res) => {
         const payload = {
             user: {
                 id: user._id,
-                email: user.email
+                email: user.email,
+                fullname: user.fullname,
+                contactNumber: user.contactNumber,
+                password:user.password
             }
         }
 
