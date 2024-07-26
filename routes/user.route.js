@@ -8,10 +8,10 @@ const {
 } = require('../controllers/userauth.controller');
 
 // Route for user login
-router.post("/login", login)
+router.post("/login", login);
 
 // Route for user signup
-router.post("/signup", signup)
+router.post("/signup", signup);
 
 // Example route for getting user profile
 router.get("/profile", getUserProfile);
