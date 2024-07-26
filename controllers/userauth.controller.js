@@ -11,7 +11,7 @@ const User = require("../models/user.models")
 
 exports.getUserProfile = async (req, res) => {
     try {
-        const token = req.headers.authorization?.split(' ')[1]; // Assuming Bearer token
+        const token = req.headers.authorization;
 
         if (!token) {
             return res.status(401).json({ message: 'No token provided' });
