@@ -2,7 +2,19 @@ const Owner = require("../models/car.models");
 
 exports.getCarDetails = async (req, res) => {
     try {
-        const car = await User.findById(req.params.id);
+        const car = await Owner.find();
+        res.status(200).json(car);
+    } catch (error) {
+        res.status(404).json({ message: error.message });
+    }
+}
+
+exports.getaCarDetail = async (req, res) => {
+    try {
+        const car = await Owner.findById(req.params.id);
+        if (!car) {
+            return res.status(404).json({ message: "Car not found" });
+        }
         res.status(200).json(car);
     } catch (error) {
         res.status(404).json({ message: error.message });
@@ -22,9 +34,9 @@ exports.postCarDetails = async (req, res) => {
 
         // Create a new user
         const newOwner = await Owner.create({
-            OwnerName, 
-            OwnerContact, 
-            OwnerAddress, 
+            OwnerName,
+            OwnerContact,
+            OwnerAddress,
             OwnerEmail
         });
 
