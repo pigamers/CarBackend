@@ -58,7 +58,7 @@ exports.login = async (req, res) => {
                 email: user.email,
                 fullname: user.fullname,
                 contactNumber: user.contactNumber,
-                password:user.password
+                password: user.password
             }
         }
 
@@ -70,7 +70,7 @@ exports.login = async (req, res) => {
                 if (err) throw err
                 res.status(200).json({
                     token: token,
-                    message: "Login successful"
+                    message: "Login successful, Please Wait..."
                 })
             }
         )
@@ -107,7 +107,6 @@ exports.signup = async (req, res) => {
             return res.status(201).json({ message: "User created successfully!!" });
         }
     } catch (error) {
-        console.error("Error in signup:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 };
