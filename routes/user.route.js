@@ -4,7 +4,8 @@ const router = express.Router();
 const {
     login,
     signup,
-    getUserProfile
+    getUserProfile,
+    changePassword
 } = require('../controllers/userauth.controller');
 
 // Route for user login
@@ -15,6 +16,9 @@ router.post("/signup", signup);
 
 // Example route for getting user profile
 router.get("/profile", getUserProfile);
+
+// password reset route
+router.post("/reset-password", changePassword);
 
 
 module.exports = router;

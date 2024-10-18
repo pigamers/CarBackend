@@ -70,7 +70,7 @@ exports.login = async (req, res) => {
                 if (err) throw err
                 res.status(200).json({
                     token: token,
-                    message: "Login successful, Please Wait..."
+                    message: "Login successful!!"
                 })
             }
         )
@@ -108,6 +108,44 @@ exports.signup = async (req, res) => {
         }
     } catch (error) {
         return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+exports.changePassword = async (req, res) => {
+    try {
+        const { email, newPassword, confirmPassword } = req.body;
+
+        // Check if new password and confirm password match
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ message: "New password and confirm password do not match" });
+        }
+
+        // Find the user by email
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ message: "Email not found" });
+        }
+
+        // Fetch the user's old password hash
+        const oldPasswordHash = user.password;
+
+        // Check if the new password is the same as the old password
+        const isSamePassword = await bcrypt.compare(newPassword, oldPasswordHash);
+        if (isSamePassword) {
+            return res.status(400).json({ message: "New password cannot be the same as the old password" });
+        }
+
+        // Hash the new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update the user's password
+        user.password = hashedPassword;
+        await user.save();
+
+        res.status(200).json({ message: "Password updated successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "Internal server error" });
     }
 };
 
