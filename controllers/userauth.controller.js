@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require("bcryptjs")
-const User = require("../models/user.models")
+const User = require("../models/user.models");
+const { signupEmail, loginEmail } = require('../utils/mailer');
 
 // get user details from frontend
 // validation - not empty
@@ -68,6 +69,7 @@ exports.login = async (req, res) => {
             { expiresIn: "1h" },
             (err, token) => {
                 if (err) throw err
+                loginEmail(payload.user.email);
                 res.status(200).json({
                     token: token,
                     message: "Login successful!!"
@@ -104,6 +106,7 @@ exports.signup = async (req, res) => {
 
         // Respond with success message if user is created successfully
         if (newUser) {
+            signupEmail(newUser.email);
             return res.status(201).json({ message: "User created successfully!!" });
         }
     } catch (error) {
