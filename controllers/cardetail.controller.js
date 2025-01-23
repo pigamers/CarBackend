@@ -1,5 +1,6 @@
 const CarDetails = require("../models/car.models");
 const cloudinary = require('../utils/cloudinary'); // Import the Cloudinary configuration
+const fs = require('fs');
 
 exports.getCarDetails = async (req, res) => {
     try {
@@ -111,46 +112,12 @@ exports.postCarDetails = async (req, res) => {
             ServiceHistory,
             InsuranceStatus,
             TaxUptill,
+            FrontView,
+            BackView,
+            RearSideView1,
+            RearSideView2,
+            ExteriorVideo,
         } = req.body;
-
-        // Initialize file URLs
-        let FrontView = '';
-        let BackView = '';
-        let RearSideView1 = '';
-        let RearSideView2 = '';
-        let ExteriorVideo = '';
-
-        // Handle file uploads if files are present in the request
-        if (req.files) {
-            // Upload front view image to Cloudinary
-            if (req.files.frontView) {
-                const result = await cloudinary.uploader.upload(req.files.frontView[0].path);
-                FrontView = result.secure_url;
-            }
-
-            // Upload back view image to Cloudinary
-            if (req.files.backView) {
-                const result = await cloudinary.uploader.upload(req.files.backView[0].path);
-                BackView = result.secure_url;
-            }
-
-            // Upload rear side view images to Cloudinary
-            if (req.files.rearSideView1) {
-                const result = await cloudinary.uploader.upload(req.files.rearSideView1[0].path);
-                RearSideView1 = result.secure_url;
-            }
-
-            if (req.files.rearSideView2) {
-                const result = await cloudinary.uploader.upload(req.files.rearSideView2[0].path);
-                RearSideView2 = result.secure_url;
-            }
-
-            // Upload exterior video to Cloudinary
-            if (req.files.exteriorVideo) {
-                const result = await cloudinary.uploader.upload(req.files.exteriorVideo[0].path, { resource_type: 'video' });
-                ExteriorVideo = result.secure_url;
-            }
-        }
 
         // Check if an owner with the same contact or email already exists
         const existingCar = await CarDetails.findOne({
@@ -161,7 +128,7 @@ exports.postCarDetails = async (req, res) => {
             return res.status(400).json({ message: "Email or Contact Already Exists!!" });
         }
 
-        // Create a new car details document
+        // Create a new car details document with URLs passed from the upload step
         const newCarDetails = new CarDetails({
             OwnerName,
             OwnerContact,
