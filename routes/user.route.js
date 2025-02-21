@@ -5,6 +5,7 @@ const {
     login,
     signup,
     getUserProfile,
+    updateUserProfile,
     changePassword
 } = require('../controllers/userauth.controller');
 
@@ -16,6 +17,9 @@ router.post("/signup", signup);
 
 // Example route for getting user profile
 router.get("/profile", getUserProfile);
+
+// route for updating profile
+router.put("/update-profile", updateUserProfile);
 
 // password reset route
 router.post("/reset-password", changePassword);

@@ -18,23 +18,90 @@ exports.getUserProfile = async (req, res) => {
             return res.status(401).json({ message: 'No token provided' });
         }
 
-        // Verify token
+        // Verify token and log the decoded data
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Fetch user data from the database
-        const user = decoded.user; // Ensure decoded.userId is available and valid`
-
+        // Get user from decoded token
+        const user = decoded.user;
+        
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        res.status(200).json(user.fullname);
+        // Send the user data directly from token
+        res.status(200).json({
+            fullname: user.fullname,
+            email: user.email,
+            contactNumber: user.contactNumber
+        });
+
     } catch (error) {
-        console.error(error.message);
+        console.error("Error in getUserProfile:", error.message);
         res.status(500).json({ message: 'Internal server error' });
     }
-
 }
+
+exports.updateUserProfile = async (req, res) => {
+    try {
+        const token = req.headers.authorization;
+
+        if (!token) {
+            return res.status(401).json({ message: 'No token provided' });
+        }
+
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        const userId = decoded.user.id;
+        
+        const { fullname, contactNumber, email } = req.body;
+
+        if (!fullname || !contactNumber || !email) {
+            return res.status(400).json({ message: 'All fields are required' });
+        }
+
+        // Update user data
+        const updateData = {
+            fullname: fullname.trim(),
+            contactNumber: contactNumber,
+            email: email.toLowerCase().trim()
+        };
+
+        // Update user in database
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            updateData,
+            { new: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'User not found in database' });
+        }
+
+        // Create new token with updated user data
+        const newToken = jwt.sign(
+            { 
+                user: {
+                    id: updatedUser._id,
+                    fullname: updatedUser.fullname,
+                    email: updatedUser.email,
+                    contactNumber: updatedUser.contactNumber
+                }
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: '1d' }
+        );
+
+        res.status(200).json({
+            user: updatedUser,
+            token: newToken
+        });
+
+    } catch (error) {
+        console.error("Error in updateUserProfile:", error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
 
 exports.login = async (req, res) => {
     try {
