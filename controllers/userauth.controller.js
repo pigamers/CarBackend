@@ -12,55 +12,40 @@ const { signupEmail, loginEmail } = require('../utils/mailer');
 
 exports.getUserProfile = async (req, res) => {
     try {
-        const token = req.headers.authorization;
+        const user = req.user; // Set by middleware
 
-        if (!token) {
-            return res.status(401).json({ message: 'No token provided' });
-        }
-
-        // Verify token and log the decoded data
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-        // Get user from decoded token
-        const user = decoded.user;
-        
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        // Send the user data directly from token
         res.status(200).json({
+            success: true,
             fullname: user.fullname,
             email: user.email,
-            contactNumber: user.contactNumber
+            contactNumber: user.contactNumber,
+            id: user._id
         });
 
     } catch (error) {
-        console.error("Error in getUserProfile:", error.message);
-        res.status(500).json({ message: 'Internal server error' });
+        console.error("Error in getUserProfile:", error);
+        res.status(500).json({
+            message: 'Internal server error',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
-}
+};
 
 exports.updateUserProfile = async (req, res) => {
     try {
-        const token = req.headers.authorization;
-
-        if (!token) {
-            return res.status(401).json({ message: 'No token provided' });
-        }
-
-        // Verify token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-        const userId = decoded.user.id;
-        
+        const userId = req.user.id; // Get user ID from middleware
         const { fullname, contactNumber, email } = req.body;
 
+        // Validate input
         if (!fullname || !contactNumber || !email) {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
-        // Update user data
+        // Prepare update data
         const updateData = {
             fullname: fullname.trim(),
             contactNumber: contactNumber,
@@ -71,7 +56,7 @@ exports.updateUserProfile = async (req, res) => {
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             updateData,
-            { new: true }
+            { new: true, runValidators: true }
         );
 
         if (!updatedUser) {
@@ -80,7 +65,7 @@ exports.updateUserProfile = async (req, res) => {
 
         // Create new token with updated user data
         const newToken = jwt.sign(
-            { 
+            {
                 user: {
                     id: updatedUser._id,
                     fullname: updatedUser.fullname,
@@ -93,128 +78,169 @@ exports.updateUserProfile = async (req, res) => {
         );
 
         res.status(200).json({
-            user: updatedUser,
+            success: true,
+            message: 'Profile updated successfully',
+            user: {
+                id: updatedUser._id,
+                fullname: updatedUser.fullname,
+                email: updatedUser.email,
+                contactNumber: updatedUser.contactNumber
+            },
             token: newToken
         });
 
     } catch (error) {
         console.error("Error in updateUserProfile:", error);
-        res.status(500).json({ message: 'Internal server error' });
+
+        if (error.code === 11000) {
+            return res.status(400).json({
+                message: 'Email already exists'
+            });
+        }
+
+        res.status(500).json({
+            message: 'Internal server error',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 };
 
 exports.login = async (req, res) => {
     try {
-        const {
-            email,
-            password
-        } = req.body
-        const user = await User.findOne({ email: email })
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({
+                message: "Email and password are required"
+            });
+        }
+
+        const user = await User.findOne({ email: email.toLowerCase() });
 
         if (!user) {
-            return res.status(400).json({ message: "Invalid email or password" })
+            return res.status(400).json({ message: "Invalid email or password" });
         }
 
-        const isMatch = await bcrypt.compare(password, user.password)
+        const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
-            return res.status(400).json({ message: "Invalid email or password" })
+            return res.status(400).json({ message: "Invalid email or password" });
         }
+
         const payload = {
             user: {
                 id: user._id,
                 email: user.email,
                 fullname: user.fullname,
-                contactNumber: user.contactNumber,
-                password: user.password
+                contactNumber: user.contactNumber
             }
-        }
+        };
 
-        jwt.sign(
+        const token = jwt.sign(
             payload,
             process.env.JWT_SECRET,
-            { expiresIn: "1h" },
-            (err, token) => {
-                if (err) throw err
-                loginEmail(payload.user.email);
-                res.status(200).json({
-                    token: token,
-                    message: "Login successful!!"
-                })
-            }
-        )
+            { expiresIn: "1d" }
+        );
+
+        // Send login email notification
+        try {
+            await loginEmail(user.email);
+        } catch (emailError) {
+            console.error("Login email failed:", emailError);
+        }
+
+        res.status(200).json({
+            token,
+            user: payload.user,
+            message: "Login successful!!"
+        });
 
     } catch (error) {
-        res.status(500).json({ message: "Internal server error" })
+        console.error("Login error:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
-}
+};
 
 exports.signup = async (req, res) => {
     try {
         const { fullname, contactNumber, email, password } = req.body;
 
-        // Check if user with the same email already exists
-        const existingUser = await User.findOne({ email } || { contactNumber });
+        if (!fullname || !contactNumber || !email || !password) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+
+        // Check existing user
+        const existingUser = await User.findOne({
+            $or: [
+                { email: email.toLowerCase() },
+                { contactNumber }
+            ]
+        });
 
         if (existingUser) {
             return res.status(400).json({ message: "User already exists!!" });
         }
 
-        // Hash the password
+        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create a new user
+        // Create new user
         const newUser = await User.create({
-            fullname,
+            fullname: fullname.trim(),
             contactNumber,
-            email,
+            email: email.toLowerCase().trim(),
             password: hashedPassword
         });
 
-        // Respond with success message if user is created successfully
-        if (newUser) {
-            signupEmail(newUser.email);
-            return res.status(201).json({ message: "User created successfully!!" });
+        // Send welcome email
+        try {
+            await signupEmail(newUser.email);
+        } catch (emailError) {
+            console.error("Signup email failed:", emailError);
         }
+
+        res.status(201).json({
+            message: "User created successfully!!"
+        });
+
     } catch (error) {
-        return res.status(500).json({ message: "Internal server error" });
+        console.error("Signup error:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
 };
 
 exports.changePassword = async (req, res) => {
     try {
-        const { email, newPassword, confirmPassword } = req.body;
+        const { newPassword, confirmPassword } = req.body;
+        const userId = req.user.id; // From auth middleware
 
-        // Check if new password and confirm password match
         if (newPassword !== confirmPassword) {
-            return res.status(400).json({ message: "New password and confirm password do not match" });
+            return res.status(400).json({
+                message: "New password and confirm password do not match"
+            });
         }
 
-        // Find the user by email
-        const user = await User.findOne({ email });
-
+        const user = await User.findById(userId);
         if (!user) {
-            return res.status(404).json({ message: "Email not found" });
+            return res.status(404).json({ message: "User not found" });
         }
 
-        // Fetch the user's old password hash
-        const oldPasswordHash = user.password;
-
-        // Check if the new password is the same as the old password
-        const isSamePassword = await bcrypt.compare(newPassword, oldPasswordHash);
+        // Check if new password is same as old password
+        const isSamePassword = await bcrypt.compare(newPassword, user.password);
         if (isSamePassword) {
-            return res.status(400).json({ message: "New password cannot be the same as the old password" });
+            return res.status(400).json({
+                message: "New password cannot be the same as the old password"
+            });
         }
 
-        // Hash the new password
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-        // Update the user's password
-        user.password = hashedPassword;
+        // Hash and update password
+        user.password = await bcrypt.hash(newPassword, 10);
         await user.save();
 
         res.status(200).json({ message: "Password updated successfully" });
+
     } catch (error) {
+        console.error("Change password error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
