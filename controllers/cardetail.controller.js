@@ -33,8 +33,8 @@ exports.uploadCarImagesAndVideos = async (req, res) => {
 
         // Handle images
         if (req.files.images) {
-            const imageFiles = Array.isArray(req.files.images) 
-                ? req.files.images 
+            const imageFiles = Array.isArray(req.files.images)
+                ? req.files.images
                 : [req.files.images];
 
             for (const file of imageFiles) {
@@ -52,8 +52,8 @@ exports.uploadCarImagesAndVideos = async (req, res) => {
 
         // Handle video
         if (req.files.video) {
-            const videoFile = Array.isArray(req.files.video) 
-                ? req.files.video[0] 
+            const videoFile = Array.isArray(req.files.video)
+                ? req.files.video[0]
                 : req.files.video;
 
             try {
